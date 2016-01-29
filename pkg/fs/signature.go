@@ -338,8 +338,17 @@ func (r *Signature) DoesPresignedSignatureMatch() (bool, *probe.Error) {
 //     - http://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html
 // returns true if matches, false otherwise. if error is not nil then it is always false
 func (r *Signature) DoesSignatureMatch(hashedPayload string) (bool, *probe.Error) {
-	// set new calulated payload
-	r.Request.Header.Set("X-Amz-Content-Sha256", hashedPayload)
+	contentSha := r.Request.Header.Get("X-Amz-Content-Sha256")
+	switch contentSha {
+	case "":
+		r.RequestHeader.Set("X-Amz-Content-Sha256", "UNSIGNED-PAYLOAD")
+	case "UNSIGNED-PAYLOAD", "STREAMING-AWS4-HMAC-SHA256-PAYLOAD":
+		break
+	default:
+		if contentSha != hashedPayload {
+			return false, nil
+		}
+	}
 
 	// Add date if not present throw error
 	var date string
